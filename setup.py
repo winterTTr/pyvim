@@ -9,4 +9,5 @@ setup(name='pyvim',
       license = 'LGPL' ,
       packages=['pyvim'],
       package_dir = { 'pyvim' : 'src' } ,
+      package_data= { 'pyvim' : ['pvLogging.ini'] },
       )
