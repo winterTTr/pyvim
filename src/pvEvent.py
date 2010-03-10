@@ -4,9 +4,9 @@ import pvEventManager
 
 # register function for keymap event
 vim.command( """
-if !exists("*PV_KEY_MAP_DISPATCH")
-    function PV_KEY_MAP_DISPATCH(uid)
-      exec 'python pyvim.pvKeymap.pvKeymapManager.notifyObserver("'. a:uid . '")'
+if !exists("*PV_KEY_MAP_DISPATCH_FUNC")
+    function PV_KEY_MAP_DISPATCH_FUNC(uid)
+      exec 'python pyvim.pvEventManager.pvCoreEventManager.notifyObserver("'. a:uid . '")'
       return @v
     endfunction
 endif
@@ -18,7 +18,7 @@ PV_EVENT_TYPE_KEYMAP  = 2
 
 
 class pvEventObserver(object):
-    def OnProcessEvent( self , **kwdict ):
+    def OnProcessEvent( self , event ):
         raise NotImplementedError('pvEventListener::OnProcessEvent()')
 
 
@@ -66,8 +66,8 @@ class pvBaseEvent(object):
 
 
 class pvAutocmdEvent(pvBaseEvent):
-    __uid_format__ = "%(type)d:%(autocmd)s:%(filename)s"
-    __register_format__   = 'autocmd  %(groupname)s %(autocmd)s %(filename)s py pyvim.pvAutocmd.pvAutocmdManager.notifyObserver("%(uid)s")'
+    __uid_format__ = "%(type)d:%(groupname)s:%(autocmd)s:%(filename)s"
+    __register_format__   = 'autocmd  %(groupname)s %(autocmd)s %(filename)s py pyvim.pvEventManager.pvCoreEventManager.notifyObserver("%(uid)s")'
     __unregister_format__ = 'autocmd! %(groupname)s %(autocmd)s %(filename)s'
 
 
@@ -81,22 +81,23 @@ class pvAutocmdEvent(pvBaseEvent):
         return PV_EVENT_TYPE_AUTOCMD
 
     def __pv_event_uid__(self):
-        return __uid_format__ % {
-                'type'    : self.type ,
-                'autocmd' : self.autocmd_name , 
-                'filename': urllib.quote( self.file_name_pattern ) }
+        return pvAutocmdEvent.__uid_format__ % {
+                'type'     : self.type ,
+                'groupname': self.group_name ,
+                'autocmd'  : self.autocmd_name , 
+                'filename' : urllib.quote( self.file_name_pattern ) }
 
     def registerCommand( self ):
         if vim.eval('exists("#%s")' % self.group_name ) == '0':
             vim.command("augroup %s\naugroup END" % self.group_name )
-        vim.command(  __register_format__ % {
+        vim.command(  pvAutocmdEvent.__register_format__ % {
                 'groupname' : self.group_name ,
                 'autocmd'   : self.autocmd_name , 
                 'filename'  : self.file_name_pattern , 
                 'uid'       : self.uid } )
 
     def unRegisterCommand( self ):
-        vim.command(  __unregister_format__ % {
+        vim.command(  pvAutocmdEvent.__unregister_format__ % {
                 'groupname' : self.group_name ,
                 'autocmd' : self.autocmd_name , 
                 'filename': self.file_name_pattern } )
@@ -112,8 +113,9 @@ class pvAutocmdEvent(pvBaseEvent):
 
     @staticmethod
     def FromUID( uid ):
-        type , autocmd_name , file_name_pattern = uid.split(':')
+        type , group_name , autocmd_name , file_name_pattern = uid.split(':')
         return pvAutocmdEvent(
+                group_name , 
                 autocmd_name , 
                 urllib.unquote( file_name_pattern ) )
 
@@ -128,16 +130,16 @@ PV_KM_MODE_VISUAL  = 0x08
 class pvKeymapEvent(pvBaseEvent):
     __uid_format__ = "%(type)d:%(keyname)s:%(mode)d:%(bufferid)d"
     __register_format_map__ = {
-            PV_KM_MODE_NORMAL : 'nnoremap %(isbuffer)s <silent> %(key)s :call PV_KEY_MAP_DISPATCH("%(uid)s" )<CR>' ,
-            PV_KM_MODE_INSERT : 'inoremap %(isbuffer)s <silent> %(key)s <C-R>=PV_KEY_MAP_DISPATCH("%(uid)s" )<CR>' , 
-            PV_KM_MODE_SELECT : 'snoremap %(isbuffer)s <silent> %(key)s <ESC>`>a<C-R>=PV_KEY_MAP_DISPATCH("%(uid)s")<CR>' ,
-            PV_KM_MODE_VISUAL : 'xnoremap %(isbuffer)s <silent> %(key)s <ESC>`>a<C-R>=PV_KEY_MAP_DISPATCH("%(uid)s")<CR>' }
+            PV_KM_MODE_NORMAL : 'nnoremap %(isbuffer)s <silent> %(key)s :call PV_KEY_MAP_DISPATCH_FUNC("%(uid)s")<CR>' ,
+            PV_KM_MODE_INSERT : 'inoremap %(isbuffer)s <silent> %(key)s <C-R>=PV_KEY_MAP_DISPATCH_FUNC("%(uid)s")<CR>' , 
+            PV_KM_MODE_SELECT : 'snoremap %(isbuffer)s <silent> %(key)s <ESC>`>a<C-R>=PV_KEY_MAP_DISPATCH_FUNC("%(uid)s")<CR>' ,
+            PV_KM_MODE_VISUAL : 'xnoremap %(isbuffer)s <silent> %(key)s <ESC>`>a<C-R>=PV_KEY_MAP_DISPATCH_FUNC("%(uid)s")<CR>' }
 
     __unregister_format_map__ = {
-            PV_KM_MODE_NORMAL : 'nunmap %(isbuffer)s %(key)s ' ,
-            PV_KM_MODE_INSERT : 'iunmap %(isbuffer)s %(key)s ' , 
-            PV_KM_MODE_SELECT : 'sunmap %(isbuffer)s %(key)s ' ,
-            PV_KM_MODE_VISUAL : 'xunmap %(isbuffer)s %(key)s ' }
+            PV_KM_MODE_NORMAL : 'nunmap %(isbuffer)s %(key)s' ,
+            PV_KM_MODE_INSERT : 'iunmap %(isbuffer)s %(key)s' , 
+            PV_KM_MODE_SELECT : 'sunmap %(isbuffer)s %(key)s' ,
+            PV_KM_MODE_VISUAL : 'xunmap %(isbuffer)s %(key)s' }
 
     def __init__( self , key_name , mode , buffer = None ):
         # convert to lower alpha if necessary
@@ -145,7 +147,7 @@ class pvKeymapEvent(pvBaseEvent):
         # <CTRL-j> ==>   <ctrl-j>
         # K        ==>   K
         # k        ==>   k
-        if key_name.find('<') != -1 and vim_name.find('>') != -1 :
+        if key_name.find('<') != -1 and key_name.find('>') != -1 :
             self.key_name = key_name.lower()
         else:
             self.key_name = key_name
@@ -159,7 +161,7 @@ class pvKeymapEvent(pvBaseEvent):
         return PV_EVENT_TYPE_KEYMAP
 
     def __pv_event_uid__(self):
-        return __uid_format__ % {
+        return pvKeymapEvent.__uid_format__ % {
                 'type'    : self.type ,
                 'keyname' : urllib.quote( self.key_name ) ,
                 'mode'    : self.mode , 
@@ -167,9 +169,9 @@ class pvKeymapEvent(pvBaseEvent):
 
 
     def registerCommand(self):
-        command =  __register_format_map__[ self.mode ] % {
+        command =  pvKeymapEvent.__register_format_map__[ self.mode ] % {
                 'isbuffer' : '<buffer>' if self.buffer_id else '' ,
-                'key'      : urllib.quote( self.key_name ) ,
+                'key'      : self.key_name ,
                 'uid'      : self.uid }
 
         if self.buffer : # <buffer> map
@@ -179,10 +181,9 @@ class pvKeymapEvent(pvBaseEvent):
 
 
     def unRegisterCommand( self ):
-        command = __unregister_format_map__[ self.mode ] % {
+        command = pvKeymapEvent.__unregister_format_map__[ self.mode ] % {
                 'isbuffer' : '<buffer>' if self.buffer_id else '' ,
-                'key'      : urllib.quote( self.key_name ) }
-
+                'key'      : self.key_name  }
 
         if self.buffer : # <buffer> map
             self.buffer.registerCommand( command , True )
@@ -205,10 +206,11 @@ class pvKeymapEvent(pvBaseEvent):
     @staticmethod
     def FromUID( uid ):
         type , keyname , mode , bufferid = uid.split(':')
-        return pvKeymapEvent(
+        event = pvKeymapEvent(
                 urllib.unquote( keyname ), 
-                mode,
-                bufferid )
+                mode )
+        event.buffer_id = int( bufferid )
+        return event
 
 
 
