@@ -4,6 +4,7 @@ import types
 
 class pvString(object):
     def __init__( self , UnicodeString = None , MultibyteString = None ):
+        self.__vim_encode = vim.eval("&encoding")
         self.__unistring = u""
 
         if UnicodeString :
@@ -24,15 +25,13 @@ class pvString(object):
 
     @property
     def MultibyteString( self ):
-        vim_encode = vim.eval("&encoding")
-        mbstr = self.__unistring.encode( vim_encode )
+        mbstr = self.__unistring.encode( self.__vim_encode )
         return mbstr
 
     @MultibyteString.setter
     def MultibyteString( self , mbstr ):
-        vim_encode = vim.eval("&encoding")
         if type( mbstr ) == types.StringType :
-            self.__unistring = mbstr.decode( vim_encode )
+            self.__unistring = mbstr.decode( self.__vim_encode )
         else:
             raise RuntimeError("pvString::MultibyteString not a multibyte string")
 
