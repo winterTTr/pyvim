@@ -307,7 +307,7 @@ class pvBuffer(object):
         # give the change to user to update the context
         _logger.debug('pvBuffer::OnUpdate() do nothing')
 
-    def OnNotifyObserver( self ):
+    def OnNotifyObserver( self , notify ):
         # give the change to user to notify the observer
         _logger.debug('pvBuffer::OnNotifyObserver() do nothing')
 

@@ -1,5 +1,5 @@
 import types
-from pvUitls import pvString
+from pvUtil import pvString
 from lxml import etree
 
 """
@@ -17,16 +17,16 @@ example:
 </root>
 """
 
-ELEMENT_TYPE_LEEF   = 0x01
-ELEMENT_TYPE_BRANCH = 0x02
-ELEMENT_TYPE_ROOT   = 0x04
+PV_ELEMENT_TYPE_LEEF   = 0x01
+PV_ELEMENT_TYPE_BRANCH = 0x02
+PV_ELEMENT_TYPE_ROOT   = 0x04
 
-BRANCH_STATUS_OPEN  = '-'
-BRANCH_STATUS_CLOSE = '+'
+PV_BRANCH_STATUS_OPEN  = '-'
+PV_BRANCH_STATUS_CLOSE = '+'
 
 class pvDataElement(object):
     def __init__( self , element ):
-        if type( element ) is not etree.Element :
+        if type( element ) is not etree._Element :
             raise RuntimeError("Invalid node")
         self.__e = element
 
@@ -34,9 +34,9 @@ class pvDataElement(object):
     @property
     def type( self ):
         return  {
-                'branch' : ELEMENT_TYPE_BRANCH , 
-                'leef'   : ELEMENT_TYPE_LEEF ,
-                'root'   : ELEMENT_TYPE_ROOT
+                'branch' : PV_ELEMENT_TYPE_BRANCH , 
+                'leef'   : PV_ELEMENT_TYPE_LEEF ,
+                'root'   : PV_ELEMENT_TYPE_ROOT
                 }[ self.__e.tag ]
 
     @property
@@ -47,18 +47,18 @@ class pvDataElement(object):
     def name( self , name ):
         if type( name ) is not pvString :
             raise RuntimeError("Using pvString as parameter")
-        return self.__e.attrib['name'] = name.UnicodeString.encode('utf8')
+        self.__e.attrib['name'] = name.UnicodeString.encode('utf8')
 
     @property
     def status( self ):
-        if self.type == ELEMENT_TYPE_BRANCH:
+        if self.type == PV_ELEMENT_TYPE_BRANCH:
             return self.__e.attrib['status']
 
         raise RuntimeError("Just Branch node can has the 'status' property")
 
     @status.setter
     def status( self , status ):
-        if self.type == ELEMENT_TYPE_BRANCH and status in [ BRANCH_STATUS_CLOSE , BRANCH_STATUS_OPEN ] :
+        if self.type == PV_ELEMENT_TYPE_BRANCH and status in [ PV_BRANCH_STATUS_CLOSE , PV_BRANCH_STATUS_OPEN ] :
             self.__e.attrib['status'] = status
 
         raise RuntimeError("Just Branch node can has the 'status' property")
@@ -102,22 +102,26 @@ class pvDataElement(object):
     def __eq__( self , other ):
         return self.__e is other.__e
 
+    def __len__( self ):
+        return len( self.__e )
+
     # create customer node
     @staticmethod
-    def CreateNode( self , type , name = None , status = None ):
-        if type not in [ ELEMENT_TYPE_LEEF , ELEMENT_TYPE_BRANCH ]:
+    def CreateElement( element_type , name = None , status = None ):
+        if element_type not in [ PV_ELEMENT_TYPE_LEEF , PV_ELEMENT_TYPE_BRANCH ]:
             raise RuntimeError("Invalid type")
 
-        if name is not None and type( name ) != pvString:
+        if name != None and type( name ) != pvString:
             raise RuntimeError("Invalid name type, must pvString")
 
-        if type == ELEMENT_TYPE_BRANCH and status not in [ BRANCH_STATUS_CLOSE  , BRANCH_STATUS_OPEN ]:
+        if element_type == PV_ELEMENT_TYPE_BRANCH and status not in [ PV_BRANCH_STATUS_CLOSE  , PV_BRANCH_STATUS_OPEN ]:
             raise RuntimeError("Invalid status")
 
-        e = etree.Element( 'branch' if type == ELEMENT_TYPE_BRANCH else 'leef' )
+
+        e = etree.Element( 'branch' if element_type == PV_ELEMENT_TYPE_BRANCH else 'leef' )
         e.attrib['line'] = '0'
         e.attrib['name'] = name.UnicodeString.encode('utf8') if name else ''
-        if type == ELEMENT_TYPE_BRANCH and status is not None:
+        if element_type == PV_ELEMENT_TYPE_BRANCH and status is not None:
             e.attrib['status'] = status
 
         return pvDataElement( e )
@@ -146,9 +150,20 @@ class pvXMLDataModel(object):
         element = element.xmlElement
 
         if 0 <= index <= len( parent ) :
-            parent.insert( index , e )
+            parent.insert( index , element )
         else:
-            parent.append( e )
+            parent.append( element )
+
+    def removeByElement( self , parent , element ):
+        parent.xmlElement.remove( element.xmlElement )
+
+    def removeByIndex( self , parent , index ):
+        element = parent.childNodes[ index ]
+        parent.xmlElement.remove( element.xmlElement )
+
+    def removeAll( self , parent ):
+        for child in parent.childNodes:
+            self.removeByElement( parent , child )
 
     def searchElementByPath( self ,  path_list ):
         search_path = []
@@ -178,12 +193,23 @@ class pvXMLDataModel(object):
 
 class pvLineData( pvXMLDataModel ):
     def addElement( self , element , index = -1 ):
-        if type( element ) != pvDataElement || element.type != ELEMENT_TYPE_LEEF :
+        if type( element ) != pvDataElement or element.type != PV_ELEMENT_TYPE_LEEF :
             raise RuntimeError("Invalid element type")
         return super( pvLineData , self ).addElement( self.root , element , index )
 
     def searchElementByName( self , name ):
         return self.searchElementByPath( [ name ] )[2]
+
+
+    def removeByElement( self , element ):
+        super( pvLineData , self ).removeByElement( self.root , element)
+
+    def removeByIndex( self , index ):
+        super( pvLineData , self ).removeByIndex( self.root , index )
+
+    def removeAll( self ):
+        super( pvLineData , self ).removeAll( self.root  )
+
 
 class pvTreeData( pvXMLDataModel ):
     pass

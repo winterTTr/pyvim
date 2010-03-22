@@ -54,6 +54,10 @@ class pvBaseEvent(object):
 
     def removeObserver( self , ob ):
         pvEventManager.pvCoreEventManager.removeObserver( self , ob )
+
+
+    def __eq__( self , other ):
+        return self.uid == other.uid
         
     @staticmethod
     def FromUID( uid ):
@@ -208,7 +212,7 @@ class pvKeymapEvent(pvBaseEvent):
         type , keyname , mode , bufferid = uid.split(':')
         event = pvKeymapEvent(
                 urllib.unquote( keyname ), 
-                mode )
+                int( mode ) )
         event.buffer_id = int( bufferid )
         return event
 

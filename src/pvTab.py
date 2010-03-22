@@ -6,8 +6,9 @@ from pvBase import pvBuffer
 from pvBase import GenerateRandomName
 from pvBase import PV_BUF_TYPE_READONLY , PV_BUF_TYPE_NORMAL
 
-from pvKeymap import pvKeymapEvent , pvKeymapObserver , pvKeymapManager
-from pvKeymap import PV_KM_MODE_NORMAL
+
+from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
+from pvDataModel import pvLineData
 
 
 import logging
@@ -15,15 +16,15 @@ _logger = logging.getLogger('pyvim.pvTab')
 
 
 class pvTabBufferObserver(object):
-    def OnSelectTabChanged( self , item ):
+    def OnSelectTabChanged( self , element ):
         raise NotImplementedError("pvTabBufferObserver::OnSelectTabChanged")
 
 
-class pvTabBuffer( pvBuffer , pvKeymapObserver ):
+class pvTabBuffer( pvBuffer , pvEventObserver ):
     def __init__( self ):
         _logger.debug('pvTabBuffer::__init__() create buffer')
         super( pvTabBuffer , self ).__init__( PV_BUF_TYPE_READONLY , GenerateRandomName( 'PV_TABBUF_' ) )
-        self.items = []
+        self.__data_model = pvLineData()
         self.selection = 0
         self.hilight = 'Visual'
 
@@ -40,16 +41,21 @@ class pvTabBuffer( pvBuffer , pvKeymapObserver ):
 
         _logger.debug('pvTabBuffer::__init__() register event')
         for event in self.__event_list:
-            pvKeymapManager.registerObserver( event , self )
+            event.registerObserver( self )
+
 
     def wipeout( self ):
         # remove event
         for event in self.__event_list:
-            pvKeymapManager.removeObserver( event , self )
+            event.removeObserver( self )
 
         # delete buffer
         super( pvTabBuffer , self ).wipeout()
 
+
+    @property
+    def dataModel( self ):
+        return self.__data_model
 
 
     def registerObserver( self , ob ):
@@ -63,33 +69,32 @@ class pvTabBuffer( pvBuffer , pvKeymapObserver ):
 
     def OnNotifyObserver( self , run ):
         if not run : return
-        if self.items :
-            for ob in self.ob_list:
-                ob.OnSelectTabChanged( self.items[self.selection] )
+        for ob in self.ob_list:
+            ob.OnSelectTabChanged( self.__data_model.root.childNodes[self.selection] )
 
-    def OnHandleKeymapEvent( self , **kwdict ):
+    def OnProcessEvent( self , event ):
         _logger.debug('pvTabBuffer::OnHandleKeymapEvent() refresh buffer')
-        self.updateBuffer()
+        for registered_event in self.__event_list:
+            if event == registered_event:
+                self.updateBuffer()
+                break
 
     def OnUpdate( self , **kwdict ):
         if 'selection' in kwdict:
-            if self.items :
-                self.selection = kwdict['selection'] % len( self.items )
+            if len( self.__data_model.root ):
+                self.selection = kwdict['selection'] % len( self.__data_model.root )
             else:
                 self.selection = 0
         else:
             # search item by position
             self.selection = self.searchIndexByCursor()
             if self.selection == -1:
-                self.selection = 0
                 return
-        selection = self.selection
-
 
         # generate the data
-        show_data_list = [ self.__makeTabItem( index , value ) for index , value in enumerate( self.items ) ]
+        show_data_list = [ x.name.MultibyteString for x in self.__data_model.root.childNodes ]
         _logger.debug('pvTabBuffer::OnUpdate() show data[%s]' % str( show_data_list ) )
-        self.buffer[0] = ' '.join( show_data_list )
+        self.buffer[0] = '|'.join( show_data_list )
 
         # hilight the item
         if len( show_data_list ) != 0 :
@@ -99,25 +104,11 @@ class pvTabBuffer( pvBuffer , pvKeymapObserver ):
         self.registerCommand( 'resize %d' % ( len ( self.buffer[0] ) / vim.current.window.width + 1 , ) ) 
 
 
-    def __makeTabItem( self , index , value ):
-        _format = "[%s]" if index == self.selection else "[%s]"
-        return _format % ( value.MultibyteString , )
-
-
     def searchIndexByCursor( self ):
-        if self.items is [] :
-            return 0
-
-        cursor_row = vim.current.window.cursor[1]
-        search_item_re = re.compile( '\[.*?\]' )
-        
-        search_index = 0 
-        for each in search_item_re.finditer( self.buffer[0] ):
-            if each.start() <= cursor_row < each.end():
-                return search_index
-            search_index += 1
-        else:
+        # if select the '|', means nothing select
+        if ( self.buffer[0][vim.current.window.cursor[1]] == '|' ):
             return -1
+        return self.buffer[0][:vim.current.window.cursor[1]].count( '|')
 
 
 
