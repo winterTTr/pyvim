@@ -163,7 +163,7 @@ class pvXMLDataModel(object):
 
     def removeAll( self , parent ):
         for child in parent.childNodes:
-            self.removeByElement( parent , child )
+            pvXMLDataModel.removeByElement( self , parent , child )
 
     def searchElementByPath( self ,  path_list ):
         search_path = []
