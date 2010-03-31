@@ -6,14 +6,14 @@ from lxml import etree
 example:
 
 <?xml version='1.0' encode='UTF-8' ?>
-<root>
-    <branch line='1' name='Show String1 ' status='-'>
-        <leef line='2'  name='Child Show String1'/>
-        <leef line='3' name='Child Show String2'/>
+<root level='0'>
+    <branch level='1' line='1' name='Show String1 ' status='-'>
+        <leef level='2' line='2'  name='Child Show String1'/>
+        <leef level='2' line='3' name='Child Show String2'/>
     </branch>
-    <branch line='4' name='Show String2' status='-'/>
-    <leef   line='5' name='Show String3' />
-    <branch line='6' name='Show String4' status='+'/>
+    <branch level='1' line='4' name='Show String2' status='-'/>
+    <leef   level='1' line='5' name='Show String3' />
+    <branch level='1' line='6' name='Show String4' status='+'/>
 </root>
 """
 
@@ -40,6 +40,10 @@ class pvDataElement(object):
                 }[ self.__e.tag ]
 
     @property
+    def level( self ):
+        return int( self.__e.attrib['level'] )
+
+    @property
     def name( self ):
         return pvString( UnicodeString = self.__e.attrib['name'].decode('utf8') )
 
@@ -61,19 +65,19 @@ class pvDataElement(object):
         if self.type == PV_ELEMENT_TYPE_BRANCH and status in [ PV_BRANCH_STATUS_CLOSE , PV_BRANCH_STATUS_OPEN ] :
             self.__e.attrib['status'] = status
 
-        raise RuntimeError("Just Branch node can has the 'status' property")
+        raise RuntimeError("Just Branch node can has the 'status' property or you set a invalid status value")
 
 
-    # property as a DOM Proxy, make the node act as a DOM node
+    # all property below make the node act as a DOM Structure
     def __returnValidNode( self , e ):
-        return pvDataElement( e ) if e else None
+        return pvDataElement( e ) if e is not None else None
 
     @property
-    def next( self ):
+    def nextSibling( self ):
         return self.__returnValidNode( self.__e.getnext() )
 
     @property
-    def previous( self ):
+    def previousSibling( self ):
         return self.__returnValidNode( self.__e.getprevious() )
 
     @property
@@ -100,9 +104,13 @@ class pvDataElement(object):
 
     # compare method
     def __eq__( self , other ):
-        return self.__e is other.__e
+        if type( other ) == pvDataElement:
+            return self.__e is other.__e
+        else :
+            return False
 
-    def __len__( self ):
+
+    def count( self ):
         return len( self.__e )
 
     # create customer node
@@ -137,10 +145,21 @@ class pvDataElement(object):
 class pvXMLDataModel(object):
     def __init__( self ):
         self.__root = etree.Element('root')
+        self.__root.attrib['level'] = '0'
+
+        self.__select_element = None
 
     @property
     def root( self ):
         return pvDataElement( self.__root )
+
+    @property
+    def selectedElement( self ):
+        return self.__select_element
+
+    @selectedElement.setter
+    def selectedElement( self , element ):
+        self.__select_element = element
 
     def addElement(  self , parent , element , index = -1 ):
         if type( parent ) != pvDataElement or type( element ) != pvDataElement :
@@ -149,7 +168,11 @@ class pvXMLDataModel(object):
         parent = parent.xmlElement
         element = element.xmlElement
 
-        if 0 <= index <= len( parent ) :
+        # update level
+        level_parent = int( parent.attrib['level'] )
+        element.attrib['level'] = "%d" % ( level_parent + 1 , )
+
+        if 0 <= index <=  len( parent ) :
             parent.insert( index , element )
         else:
             parent.append( element )
@@ -191,6 +214,7 @@ class pvXMLDataModel(object):
             return None
 
 
+
 class pvLineData( pvXMLDataModel ):
     def addElement( self , element , index = -1 ):
         if type( element ) != pvDataElement or element.type != PV_ELEMENT_TYPE_LEEF :
@@ -213,4 +237,3 @@ class pvLineData( pvXMLDataModel ):
 
 class pvTreeData( pvXMLDataModel ):
     pass
-

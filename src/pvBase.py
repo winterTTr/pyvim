@@ -257,8 +257,8 @@ class pvBuffer(object):
         self.__restoreLazyRedraw()
 
 
-    def updateBuffer( self , **kwdict ):
-        _logger.debug('pvBuffer::updateBuffer() kwdict=%s' % str( kwdict) )
+    def updateBuffer( self ):
+        _logger.debug('pvBuffer::updateBuffer()')
         if self.__type == PV_BUF_TYPE_ATTACH : 
             _logger.warn('pvBuffer::updateBuffer() ATTACH buffer should not be updated')
             return
@@ -285,7 +285,7 @@ class pvBuffer(object):
 
         
         _logger.debug('pvBuffer::updateBuffer() run OnUpdate')
-        self.OnUpdate( ** kwdict )
+        self.OnUpdate()
         _logger.debug('pvBuffer::updateBuffer() flush command')
         self.tryFlushCommandQueue()
 
@@ -301,15 +301,11 @@ class pvBuffer(object):
         self.__restoreLazyRedraw()
 
         _logger.debug('pvBuffer::updateBuffer() notify observer about the update')
-        self.OnNotifyObserver( kwdict.get('notify' , True) )
             
-    def OnUpdate(self , ** kwdict ):
+    def OnUpdate( self ):
         # give the change to user to update the context
         _logger.debug('pvBuffer::OnUpdate() do nothing')
 
-    def OnNotifyObserver( self , notify ):
-        # give the change to user to notify the observer
-        _logger.debug('pvBuffer::OnNotifyObserver() do nothing')
 
 
 PV_WINDOW_ID_CLOSED = -1

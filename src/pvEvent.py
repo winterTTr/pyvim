@@ -19,7 +19,7 @@ PV_EVENT_TYPE_KEYMAP  = 2
 
 class pvEventObserver(object):
     def OnProcessEvent( self , event ):
-        raise NotImplementedError('pvEventListener::OnProcessEvent()')
+        raise NotImplementedError('pvEventObserver::OnProcessEvent()')
 
 
 class pvBaseEvent(object):
