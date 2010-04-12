@@ -4,16 +4,11 @@ import vim
 from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
 from pvUtil import pvString
 
-from pvEvent import pvKeymapEvent , PV_KM_MODE_NORMAL
-from pvDataModel import pvTreeData , pvTreeDataFactory 
+from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
+from pvDataModel import pvTreeData 
+from pvDataModel import pvDataElement
 from pvDataModel import PV_ELEMENT_TYPE_LEEF , PV_ELEMENT_TYPE_BRANCH
 from pvDataModel import PV_BRANCH_STATUS_OPEN , PV_BRANCH_STATUS_CLOSE
-
-
-# type of the action for the OnUpdate
-PV_TREE_UPDATE_SELECT = 0x01
-PV_TREE_UPDATE_TARGET = 0x02
-
 
 import logging
 _logger = logging.getLogger('pyvim.pvTreeBuffer')
@@ -35,7 +30,6 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         self.registerCommand('setlocal foldcolumn=0')
         self.registerCommand('setlocal winfixwidth')
         self.__data_model = pvTreeData()
-        self.__current_select_element = None
 
         # make event
         self.__event_list = []
@@ -69,8 +63,8 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
     def OnProcessEvent( self , event ):
         select_line = vim.current.window.cursor[0]
-        self.__current_select_element = self.__data_model.searchElementByLine( select_line )
-        self.notifyAllObserver( self.__current_select_element )
+        self.__data_model.selectedElement = self.__data_model.searchElementByLine( select_line )
+        self.notifyAllObserver( self.__data_model.selectedElement )
         self.updateBuffer()
 
     def OnUpdate( self , **kwdict ) :
@@ -90,7 +84,8 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
         iterator = self.__data_model.root.xmlElement.iter()
         iterator.next()                # pass the root element
-        for element in iterator:
+        for _element in iterator:
+            element = pvDataElement( _element )
             if element.level > lock_level :
                 # jump the element , update line_no to -1
                 element.xmlElement.attrib['line_no'] = "%d" % ( -1 , )
@@ -113,21 +108,18 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             # construct information
             indent = '| ' * element.level
             flag = ' ' if element.type == PV_ELEMENT_TYPE_LEEF else element.status
-            name = element.name.MultibyteString \
-                    if element == self.__current_select_element \
-                    else element.name.MultibyteString + '   <==='
+            name = element.name.MultibyteString + '   <===' \
+                    if element == self.__data_model.selectedElement \
+                    else element.name.MultibyteString 
             update_data_buffer.append( self.__format_string__ % {
                 'indent' : indent , 
                 'flag'   : flag , 
                 'name'   : name } )
 
-        self.buffer = update_data_buffer
-
-    def __hilightItem( self , line_no ):
-        vim.current.window.cursor = ( line_no + 1 , 0 )
+        self.buffer[:] = update_data_buffer
+        vim.current.window.cursor = ( int( self.__data_model.selectedElement.xmlElement.attrib['line_no'] ) + 1 , 0 )
         self.registerCommand('redraw')
         self.registerCommand('match Search /^.*   <===$/' , True)
-
 
     def notifyAllObserver( self , element ):
         for ob in self.__observer_list:

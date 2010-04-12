@@ -45,13 +45,13 @@ class pvDataElement(object):
 
     @property
     def name( self ):
-        return pvString( UnicodeString = self.__e.attrib['name'].decode('utf8') )
+        return pvString( UnicodeString = unicode( self.__e.attrib['name'] ) )
 
     @name.setter
     def name( self , name ):
         if type( name ) is not pvString :
             raise RuntimeError("Using pvString as parameter")
-        self.__e.attrib['name'] = name.UnicodeString.encode('utf8')
+        self.__e.attrib['name'] = name.UnicodeString
 
     @property
     def status( self ):
@@ -64,6 +64,7 @@ class pvDataElement(object):
     def status( self , status ):
         if self.type == PV_ELEMENT_TYPE_BRANCH and status in [ PV_BRANCH_STATUS_CLOSE , PV_BRANCH_STATUS_OPEN ] :
             self.__e.attrib['status'] = status
+            return
 
         raise RuntimeError("Just Branch node can has the 'status' property or you set a invalid status value")
 
@@ -128,7 +129,8 @@ class pvDataElement(object):
 
         e = etree.Element( 'branch' if element_type == PV_ELEMENT_TYPE_BRANCH else 'leef' )
         e.attrib['line'] = '0'
-        e.attrib['name'] = name.UnicodeString.encode('utf8') if name else ''
+        e.attrib['level'] = '-1'
+        e.attrib['name'] = name.UnicodeString if name else u''
         if element_type == PV_ELEMENT_TYPE_BRANCH and status is not None:
             e.attrib['status'] = status
 
@@ -190,7 +192,7 @@ class pvXMLDataModel(object):
 
     def searchElementByPath( self ,  path_list ):
         search_path = []
-        left_path = [ x.UnicodeString.encode('utf8') for x in path_list ] 
+        left_path = [ x.UnicodeString for x in path_list ] 
         search_element = self.__root
 
         while left_path:
@@ -202,8 +204,8 @@ class pvXMLDataModel(object):
             else:
                 break
 
-        return ( [ pvString( UnicodeString = x.decode('utf8') ) for x in search_path ] ,
-                 [ pvString( UnicodeString = x.decode('utf8') ) for x in left_path ] ,
+        return ( [ pvString( UnicodeString = x ) for x in search_path ] ,
+                 [ pvString( UnicodeString = x ) for x in left_path ] ,
                    pvDataElement( search_element ) if search_element != self.__root else None )
 
     def searchElementByLine( self ,  line_no ):
