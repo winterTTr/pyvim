@@ -10,7 +10,7 @@ class pvString(object):
     def unicode(self):
         return self.__unistring
 
-    @UnicodeString.setter
+    @unicode.setter
     def unicode( self , unicode ):
         if type( unicode ) == types.UnicodeType :
             self.__unistring = unicode
@@ -21,7 +21,7 @@ class pvString(object):
     def vim(self):
         return self.__u.encode( vim.eval("&encoding") )
 
-    @MultibyteString.setter
+    @vim.setter
     def vim( self , vimStr ):
         if type( vimStr ) == types.StringType :
             self.__u = mbstr.decode( vim.eval("&encoding") )

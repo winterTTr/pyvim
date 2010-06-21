@@ -5,7 +5,7 @@ from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
 from pvUtil import pvString
 
 from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
-from pvDataModel.py import pvAbstractModel , pvModelIndex
+from pvDataModel import pvAbstractModel , pvModelIndex
 
 
 import logging
@@ -13,8 +13,14 @@ _logger = logging.getLogger('pyvim.pvTreeBuffer')
 
 
 class pvTreeBufferObserver(object):
-    def OnElementSelect( self , element ):
-        raise NotImplementedError("pvTreeBufferObserver::OnElementSelect")
+    def OnTreeNodeExpanded( self , index ):
+        raise NotImplementedError("pvTreeBufferObserver::OnNodeExpand")
+
+    def OnTreeNodeCollapsed( self , index ):
+        raise NotImplementedError("pvTreeBufferObserver::OnNodeCollapsed")
+
+    def OnTreeNodeSelected( self , index ):
+        raise NotImplementedError("pvTreeBufferObserver::OnNodeSelected")
 
 
 class pvTreeBufferItem(object):
@@ -29,7 +35,7 @@ class pvTreeBufferItem(object):
 class pvTreeBuffer(pvBuffer , pvEventObserver):
     __format_string__ = "%(indent)s%(flag)1s%(name)s"
 
-    def __init__( self  , dataModel = None ):
+    def __init__( self  , dataModel ):
         super( pvTreeBuffer , self ).__init__( PV_BUF_TYPE_READONLY , GenerateRandomName( 'PV_TREEBUF_' ) )
         self.registerCommand('setlocal nowrap')
         self.registerCommand('setlocal nonumber')
@@ -87,7 +93,11 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
         index = self.current_selection
         item = self.__item_list[ index ]
-        if self.__data_model.hasChildren( item.index ):
+        # notify observer
+        for ob in self.__observer_list:
+            ob.OnTreeNodeSelected( item.index )
+
+        if item.hasChildren:
             item.isExpand = not item.isExpand
             if item.isExpand : # close ==> open
                 for x in xrange( self.__data_model.rowCount( item.index) ):
@@ -98,8 +108,27 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
                     insertItem.hasChildren = self.__data_model.hasChildren( modelIndex )
                     self.__item_list.insert( index + 1 , insertItem )
                     index = index + 1
+                #notify observer
+                for ob in self.__observer_list:
+                    ob.OnTreeNodeExpanded( item.index )
+
             else: # open ==> close
-                pass # TODO
+                if index + 1 < len( self.__item_list ):  
+                    # there are item behind the current selection
+                    childrenStart = childrenEnd = index + 1
+                    while childrenEnd < len( self.__item_list ) :
+                        if self.__item_list[childrenEnd].indent > item.indent :
+                            childrenEnd = childrenEnd + 1
+                        else:
+                            break
+                    self.__item_list = self.__item_list[:childrenStart] + self.__item_list[childrenEnd:]
+
+                #notify observer
+                for ob in self.__observer_list:
+                    ob.OnTreeNodeCollapsed( item.index )
+
+        else: # no children
+            pass
 
         self.updateBuffer()
 
@@ -134,9 +163,5 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         vim.current.window.cursor = ( self.current_selection + 1 , 0 )
         self.registerCommand('redraw')
         self.registerCommand('match Search /^.*   <===$/' , True)
-
-    def notifyAllObserver( self , element ):
-        for ob in self.__observer_list:
-            ob.OnElementSelect( element )
 
 

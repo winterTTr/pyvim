@@ -18,7 +18,7 @@ class pvAbstractModel(object):
         raise NotImplementedType("pvAbstractModel::index")
 
 
-    def data( self , pindex , role = PV_MODEL_ROLE_DISPLAY ):
+    def data( self , index , role = PV_MODEL_ROLE_DISPLAY ):
         raise NotImplementedType("pvAbstractModel::data")
 
     def hasChildren( self , index ):
