@@ -3,48 +3,54 @@ import types
 
 
 class pvString(object):
-    def __init__( self , UnicodeString = None , MultibyteString = None ):
-        self.__vim_encode = vim.eval("&encoding")
-        self.__unistring = u""
-
-        if UnicodeString :
-            self.UnicodeString = UnicodeString
-        elif MultibyteString:
-            self.MultibyteString = MultibyteString
+    def __init__( self ):
+        self.__u = u""
 
     @property
-    def UnicodeString( self ):
+    def unicode(self):
         return self.__unistring
 
     @UnicodeString.setter
-    def UnicodeString( self , unicode ):
+    def unicode( self , unicode ):
         if type( unicode ) == types.UnicodeType :
             self.__unistring = unicode
         else:
-            raise RuntimeError("pvString::UnicodeString not a unicode string")
+            raise RuntimeError("pvString::unicode must be set to an unicode string")
 
     @property
-    def MultibyteString( self ):
-        mbstr = self.__unistring.encode( self.__vim_encode )
-        return mbstr
+    def vim(self):
+        return self.__u.encode( vim.eval("&encoding") )
 
     @MultibyteString.setter
-    def MultibyteString( self , mbstr ):
-        if type( mbstr ) == types.StringType :
-            self.__unistring = mbstr.decode( self.__vim_encode )
+    def vim( self , vimStr ):
+        if type( vimStr ) == types.StringType :
+            self.__u = mbstr.decode( vim.eval("&encoding") )
         else:
-            raise RuntimeError("pvString::MultibyteString not a multibyte string")
+            raise RuntimeError("pvString::vim must be set to a multibyte string from vim internal")
 
     def __eq__( self , other ):
         if isinstance( other , pvString ):
-            return self.UnicodeString == other.UnicodeString
+            return self.unicode == other.unicode
         elif type( other ) == types.UnicodeType :
-            return self.UnicodeString == other
+            return self.unicode == other
         elif type( other ) == types.StringType :
-            return self.MultibyteString == other
+            return self.vim == other
         else :
             return False
 
     def __repr__( self ):
-        return u"pvString:\"%s\"" % self.__unistring
+        return u"pvString:\"%s\"" % self.__u
+
+
+    @staticmethod
+    def fromVim( vimStr ):
+        s = pvString()
+        s.vim = vimStr
+        return s
+
+    @staticmethod
+    def fromUnicode( unicode ):
+        s = pvString()
+        s.unicode = unicode
+        return s
 

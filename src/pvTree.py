@@ -5,10 +5,8 @@ from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
 from pvUtil import pvString
 
 from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
-from pvDataModel import pvTreeData 
-from pvDataModel import pvDataElement
-from pvDataModel import PV_ELEMENT_TYPE_LEEF , PV_ELEMENT_TYPE_BRANCH
-from pvDataModel import PV_BRANCH_STATUS_OPEN , PV_BRANCH_STATUS_CLOSE
+from pvDataModel.py import pvAbstractModel , pvModelIndex
+
 
 import logging
 _logger = logging.getLogger('pyvim.pvTreeBuffer')
@@ -19,17 +17,32 @@ class pvTreeBufferObserver(object):
         raise NotImplementedError("pvTreeBufferObserver::OnElementSelect")
 
 
+class pvTreeBufferItem(object):
+    def __init__( self ):
+        self.index = None
+        self.indent = None
+        self.isExpand = False
+        self.hasChildren = False
+
+
 
 class pvTreeBuffer(pvBuffer , pvEventObserver):
     __format_string__ = "%(indent)s%(flag)1s%(name)s"
 
-    def __init__( self  ):
+    def __init__( self  , dataModel = None ):
         super( pvTreeBuffer , self ).__init__( PV_BUF_TYPE_READONLY , GenerateRandomName( 'PV_TREEBUF_' ) )
         self.registerCommand('setlocal nowrap')
         self.registerCommand('setlocal nonumber')
         self.registerCommand('setlocal foldcolumn=0')
         self.registerCommand('setlocal winfixwidth')
-        self.__data_model = pvTreeData()
+
+
+        if not isinstance( dataModel , pvAbstractModel ):
+            raise RuntimeError("pvTreeBuffer::__init__() dataModel is not instance of pvAbstractModel")
+        self.__data_model = dataModel
+        self.__observer_list = []
+        self.__item_list = []
+        self.current_selection = -1
 
         # make event
         self.__event_list = []
@@ -39,9 +52,6 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         for event in self.__event_list:
             event.registerObserver( self )
 
-        self.__observer_list = []
-        self.__notifyInfo = []
-
 
     def wipeout( self ):
         for event in self.__event_list:
@@ -49,8 +59,17 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         super( pvTreeBuffer , self ).wipeout()
 
     @property
-    def dataModel( self ):
+    def model( self ):
         return self.__data_model
+
+    @model.setter
+    def model( self , dataModel ):
+        if not isinstance( dataModel , pvAbstractModel ):
+            raise RuntimeError("pvTreeBuffer::__init__() dataModel is not instance of pvAbstractModel")
+
+        self.__item_list = []
+        self.__data_model = dataModel
+
 
     def registerObserver( self , ob ):
         self.__observer_list.append( ob )
@@ -62,62 +81,57 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             pass
 
     def OnProcessEvent( self , event ):
-        select_line = vim.current.window.cursor[0]
-        self.__data_model.selectedElement = self.__data_model.searchElementByLine( select_line )
-        self.notifyAllObserver( self.__data_model.selectedElement )
+        if event not in self.__event_list: return
+
+        self.current_selection = vim.current.window.cursor[0] - 1
+
+        index = self.current_selection
+        item = self.__item_list[ index ]
+        if self.__data_model.hasChildren( item.index ):
+            item.isExpand = not item.isExpand
+            if item.isExpand : # close ==> open
+                for x in xrange( self.__data_model.rowCount( item.index) ):
+                    modeIndex = self.__data_model.index( x , item.index ) 
+                    insertItem = pvTreeBufferItem()
+                    insertItem.index = modelIndex
+                    insertItem.indent = item.indent + 1
+                    insertItem.hasChildren = self.__data_model.hasChildren( modelIndex )
+                    self.__item_list.insert( index + 1 , insertItem )
+                    index = index + 1
+            else: # open ==> close
+                pass # TODO
+
         self.updateBuffer()
 
-    def OnUpdate( self , **kwdict ) :
-        # if root is empty, it should try to be expand at first
-        if self.__data_model.root.count() == 0 :
-            self.notifyAllObserver( self.__data_model.root )
-            # if nothing, just clear buffer and return
-            if self.__data_model.root.count() == 0 :
-                self.buffer[:] = None
-                return
+    def OnUpdate( self ):
+        # if root is empty , fetch from model the root item first
+        if len( self.__item_list  ) == 0 :
+            rowCount = self.__data_model.rowCount( pvModelIndex() )
+            for i in xrange( rowCount ):
+                self.__item_list.append( 
+                        pvTreeBufferItem( 
+                            self.__data_model.index( i , pvModelIndex() ) , 
+                            0 ) )
 
-        # update data to buffer
-        LOCK_LEVEL_MAX = 9999
-        update_data_buffer = []        # buffer save the data which will be set to buffer finally
-        line_no = 1                    # update the line number
-        lock_level = LOCK_LEVEL_MAX    # used to jump over the child of the branch whose status is close
 
-        iterator = self.__data_model.root.xmlElement.iter()
-        iterator.next()                # pass the root element
-        for _element in iterator:
-            element = pvDataElement( _element )
-            if element.level > lock_level :
-                # jump the element , update line_no to -1
-                element.xmlElement.attrib['line_no'] = "%d" % ( -1 , )
-                continue
+        self.buffer[:] = []
+        update_data_buffer = []
+        for i , item in enumerate( self.__item_list ):
+            indent = '| ' * item.indent
+            if item.hasChildren:
+                flag = '-' if item.isExpand else '+'
             else:
-                # if the current level is the same ( alreay pass all
-                # child ) or less than ( another parent level )
-                # lock_level , clear the lock_level
-                lock_level = LOCK_LEVEL_MAX
+                flag = ' '
 
-            # if the current branch element is marked as "close" status,
-            # lock the level to dismiss the children node
-            if element.type == PV_ELEMENT_TYPE_BRANCH and element.status == PV_BRANCH_STATUS_CLOSE:
-                lock_level = element.level
-
-            # update line no
-            element.xmlElement.attrib['line_no'] = "%d" % ( line_no , )
-            line_no += 1
-
-            # construct information
-            indent = '| ' * element.level
-            flag = ' ' if element.type == PV_ELEMENT_TYPE_LEEF else element.status
-            name = element.name.MultibyteString + '   <===' \
-                    if element == self.__data_model.selectedElement \
-                    else element.name.MultibyteString 
+            name = self.__data_model.data( item.index ).vim()
+            name = name + '   <===' if i == self.current_selection else ''
             update_data_buffer.append( self.__format_string__ % {
                 'indent' : indent , 
                 'flag'   : flag , 
-                'name'   : name } )
+                'name'   : name.vim() } )
 
         self.buffer[:] = update_data_buffer
-        vim.current.window.cursor = ( int( self.__data_model.selectedElement.xmlElement.attrib['line_no'] ) + 1 , 0 )
+        vim.current.window.cursor = ( self.current_selection + 1 , 0 )
         self.registerCommand('redraw')
         self.registerCommand('match Search /^.*   <===$/' , True)
 
