@@ -87,6 +87,8 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             pass
 
     def OnProcessEvent( self , event ):
+        import sockpdb
+        sockpdb.set_trace()
         if event not in self.__event_list: return
 
         self.current_selection = vim.current.window.cursor[0] - 1
@@ -137,11 +139,11 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         if len( self.__item_list  ) == 0 :
             rowCount = self.__data_model.rowCount( pvModelIndex() )
             for i in xrange( rowCount ):
-                self.__item_list.append( 
-                        pvTreeBufferItem( 
-                            self.__data_model.index( i , pvModelIndex() ) , 
-                            0 ) )
-
+                item = pvTreeBufferItem()
+                item.index = self.__data_model.index( i , pvModelIndex() )
+                item.indent = 0 
+                item.hasChildren = self.__data_model.hasChildren( item.index )
+                self.__item_list.append( item )
 
         self.buffer[:] = []
         update_data_buffer = []
@@ -152,16 +154,17 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             else:
                 flag = ' '
 
-            name = self.__data_model.data( item.index ).vim()
-            name = name + '   <===' if i == self.current_selection else ''
+            name = self.__data_model.data( item.index ).vim
+            name +=  '   <===' if i == self.current_selection else '' 
             update_data_buffer.append( self.__format_string__ % {
                 'indent' : indent , 
                 'flag'   : flag , 
-                'name'   : name.vim() } )
+                'name'   : name } )
 
         self.buffer[:] = update_data_buffer
-        vim.current.window.cursor = ( self.current_selection + 1 , 0 )
-        self.registerCommand('redraw')
-        self.registerCommand('match Search /^.*   <===$/' , True)
+        if self.current_selection != -1 :
+            vim.current.window.cursor = ( self.current_selection + 1 , 0 )
+            self.registerCommand('redraw')
+            self.registerCommand('match Search /^.*   <===$/' , True)
 
 

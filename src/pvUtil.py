@@ -8,12 +8,12 @@ class pvString(object):
 
     @property
     def unicode(self):
-        return self.__unistring
+        return self.__u
 
     @unicode.setter
     def unicode( self , unicode ):
         if type( unicode ) == types.UnicodeType :
-            self.__unistring = unicode
+            self.__u = unicode
         else:
             raise RuntimeError("pvString::unicode must be set to an unicode string")
 
@@ -24,7 +24,7 @@ class pvString(object):
     @vim.setter
     def vim( self , vimStr ):
         if type( vimStr ) == types.StringType :
-            self.__u = mbstr.decode( vim.eval("&encoding") )
+            self.__u = vimStr.decode( vim.eval("&encoding") )
         else:
             raise RuntimeError("pvString::vim must be set to a multibyte string from vim internal")
 
@@ -49,8 +49,8 @@ class pvString(object):
         return s
 
     @staticmethod
-    def fromUnicode( unicode ):
+    def fromUnicode( uniStr ):
         s = pvString()
-        s.unicode = unicode
+        s.unicode = uniStr
         return s
 
