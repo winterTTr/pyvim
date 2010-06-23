@@ -87,8 +87,6 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             pass
 
     def OnProcessEvent( self , event ):
-        import sockpdb
-        sockpdb.set_trace()
         if event not in self.__event_list: return
 
         self.current_selection = vim.current.window.cursor[0] - 1
@@ -103,7 +101,7 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             item.isExpand = not item.isExpand
             if item.isExpand : # close ==> open
                 for x in xrange( self.__data_model.rowCount( item.index) ):
-                    modeIndex = self.__data_model.index( x , item.index ) 
+                    modelIndex = self.__data_model.index( x , item.index ) 
                     insertItem = pvTreeBufferItem()
                     insertItem.index = modelIndex
                     insertItem.indent = item.indent + 1
@@ -166,5 +164,47 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             vim.current.window.cursor = ( self.current_selection + 1 , 0 )
             self.registerCommand('redraw')
             self.registerCommand('match Search /^.*   <===$/' , True)
+
+
+    def expandTo( self , index ):
+        # root index, no need expand , just return OK
+        if not index.isValid(): return True
+
+        # can find the index
+        if self.index2item( index ): return True
+
+        # can't find the index ==> need to expand
+        pindex = index.parent()
+        if not self.expandTo( pindex ): return False
+
+        pitem = self.index2item( pindex )
+        # no children, no possible to expand anymore for parent item
+        if pitem and pitem.hasChildren == False: return False
+
+        insert_index = self.__item_list.index( pitem ) if item != None else -1 
+
+        for x in xrange( self.__data_model.rowCount( pindex ) ):
+            modelIndex = self.__data_model.index( x , pindex )
+            insertItem = pvTreeBufferItem()
+            insertItem.index = modelIndex
+            insertItem.indent = pitem.indent + 1
+            insertItem.hasChildren = self.__data_model.hasChildren( modelIndex )
+            self.__item_list.insert( insert_index + 1 , insertItem )
+            insert_index = insert_index + 1
+
+        #notify observer
+        pindex.isExpand = True
+        for ob in self.__observer_list:
+            ob.OnTreeNodeExpanded( pindex )
+
+        return index2item( index ) != None
+
+    def index2item( self , index ):
+        try:
+            return filter( lambda x : x.index == index , self.__item_list )[0]
+        except:
+            return None
+
+
 
 
