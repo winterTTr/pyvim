@@ -168,10 +168,16 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
     def expandTo( self , index ):
         # root index, no need expand , just return OK
-        if not index.isValid(): return True
+        if not index.isValid(): 
+            self.current_selection = -1 
+            return True
+
 
         # can find the index
-        if self.index2item( index ): return True
+        item = self.index2item( index )
+        if item:
+            self.current_selection = self.__item_list.index( item )
+            return True
 
         # can't find the index ==> need to expand
         pindex = index.parent()
@@ -198,13 +204,19 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         for ob in self.__observer_list:
             ob.OnTreeNodeExpanded( pindex )
 
-        return self.index2item( index ) != None
+
+        item = self.index2item( index )
+        if item :
+            self.current_selection = self.__item_list.index( item )
+        return item != None
 
     def index2item( self , index ):
         try:
             return filter( lambda x : x.index == index , self.__item_list )[0]
         except:
             return None
+
+
 
 
 

@@ -8,20 +8,22 @@ from pvBase import PV_BUF_TYPE_READONLY , PV_BUF_TYPE_NORMAL
 
 
 from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
-from pvDataModel import pvLineData
+from pvDataModel import pvModelIndex 
 
 
 import logging
 _logger = logging.getLogger('pyvim.pvTab')
 
 
-class pvTabBufferObserver(object):
-    def OnTabSelect( self , element ):
-        raise NotImplementedError("pvTabBufferObserver::OnTabSelect")
+class pvLineBufferObserver(object):
+    def OnLineItemSelected( self , element ):
+        raise NotImplementedError("pvTabBufferObserver::OnTabItemSelected")
 
+PV_LINE_BUFFER_VERTICAL = 0x01
+PV_LINE_BUFFER_HORIZONAL = 0x02
 
-class pvTabBuffer( pvBuffer , pvEventObserver ):
-    def __init__( self ):
+class pvLineBufferBase( pvBuffer , pvEventObserver ):
+    def __init__( self , dataModel , type ):
         _logger.debug('pvTabBuffer::__init__() create buffer')
         super( pvTabBuffer , self ).__init__( PV_BUF_TYPE_READONLY , GenerateRandomName( 'PV_TABBUF_' ) )
         self.__data_model = pvLineData()

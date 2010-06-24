@@ -4,15 +4,11 @@ from pvBase import pvBuffer
 from pvBase import GenerateRandomName
 from pvBase import PV_BUF_TYPE_READONLY , PV_BUF_TYPE_NORMAL
 
-from pvKeymap import pvKeymapEvent , pvKeymapObserver , pvKeymapManager
-from pvKeymap import PV_KM_MODE_NORMAL
-
-
 class pvListBufferObserver(object):
-    def OnSelectItemChanged( self , item ):
-        raise NotImplementedError("pvListBufferObserver::OnSelectItemChanged")
+    def OnListItemSelected( self , index ):
+        raise NotImplementedError("pvListBufferObserver::OnListItemSelected")
 
-class pvListBuffer( pvBuffer , pvKeymapObserver ):
+class pvListBuffer( pvTreeBuffer ):
     def __init__( self ):
         super( pvListBuffer , self ).__init__( PV_BUF_TYPE_READONLY , GenerateRandomName( 'PV_LISTBUF_' ) )
         self.items = []
