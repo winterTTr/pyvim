@@ -181,23 +181,24 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         # no children, no possible to expand anymore for parent item
         if pitem and pitem.hasChildren == False: return False
 
-        insert_index = self.__item_list.index( pitem ) if item != None else -1 
+        insert_index = self.__item_list.index( pitem ) if pitem != None else -1 
 
         for x in xrange( self.__data_model.rowCount( pindex ) ):
             modelIndex = self.__data_model.index( x , pindex )
             insertItem = pvTreeBufferItem()
             insertItem.index = modelIndex
-            insertItem.indent = pitem.indent + 1
+            insertItem.indent = ( pitem.indent + 1 ) if pitem else 0
             insertItem.hasChildren = self.__data_model.hasChildren( modelIndex )
             self.__item_list.insert( insert_index + 1 , insertItem )
             insert_index = insert_index + 1
 
         #notify observer
-        pindex.isExpand = True
+        if pitem :
+            pitem.isExpand = True
         for ob in self.__observer_list:
             ob.OnTreeNodeExpanded( pindex )
 
-        return index2item( index ) != None
+        return self.index2item( index ) != None
 
     def index2item( self , index ):
         try:
