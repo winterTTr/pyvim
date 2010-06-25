@@ -1,4 +1,3 @@
-import sockpdb
 import vim
 from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
 from pvTree import pvTreeBuffer
@@ -81,20 +80,7 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
 
     @selection.setter
     def selection( self , index ):
-        try: 
-            offset = self.__item_list.index( index )
-        except:
-            offset = -1
-
-        if offset == -1 :
-            # TODO: may need to clean hilight
-            self.__current_selection = pvModelIndex()
-            return
-
-        if self.__direction == PV_LINEARBUF_TYPE_VERTICAL:
-            vim.current.window.cursor = ( offset + 1 , 0 )
-            self.registerCommand('redraw')
-        self.registerCommand('match Search /\V%s/' % self.__data_model.data( index ).vim , True)
+        self.__current_selection = index
 
     def registerObserver( self , ob ):
         if not isinstance( ob , pvLinearBufferObserver ):
@@ -111,11 +97,13 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
     def OnProcessEvent( self , event ):
         if event not in self.__event_list : return
 
-        #sockpdb.set_trace()        
-
         index = self.indexAtCursor( vim.current.window.cursor )
         if index.isValid() :
-            self.selection = index
+            if self.__direction == PV_LINEARBUF_TYPE_VERTICAL:
+                vim.current.window.cursor = ( self.__item_list.index( index ) + 1 , 0 )
+                self.registerCommand('redraw')
+            self.registerCommand('match Search /\V%s/' % self.__data_model.data( index ).vim , True)
+            self.__current_selection = index
             for ob in self.__observer_list:
                 ob.OnLinearItemSelected( index )
 
@@ -138,9 +126,6 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
             self.buffer[0] = "|".join( update_data_buffer )
             self.registerCommand( 'resize %d' % ( len ( self.buffer[0] ) / vim.current.window.width + 1 , ) )
 
-
-
-
         if self.__current_selection.isValid() and self.__current_selection in self.__item_list:
             if self.__direction == PV_LINEARBUF_TYPE_VERTICAL:
                 vim.current.window.cursor = ( offset + 1 , 0 )
@@ -148,7 +133,7 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
             else:
                 # TODO: may need move to the tab ?
                 pass
-            self.registerCommand('match Search /\V\^%s\$/' % update_data_buffer[ self.__item_list.index( self.__current_selection ) ] , True )
+            self.registerCommand('match Search /\V%s/' % update_data_buffer[ self.__item_list.index( self.__current_selection ) ] , True )
 
 
     def indexAtCursor( self , cursor_pos ):
