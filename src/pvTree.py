@@ -5,7 +5,7 @@ from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
 from pvUtil import pvString
 
 from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
-from pvDataModel import pvAbstractModel , pvModelIndex
+from pvDataModel import pvAbstractModel , pvModelIndex , PV_MODEL_ROLE_DISPLAY
 
 
 import logging
@@ -48,7 +48,7 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         self.__data_model = dataModel
         self.__observer_list = []
         self.__item_list = []
-        self.current_selection = -1
+        self.__current_selection = pvModelIndex()
 
         # make event
         self.__event_list = []
@@ -71,13 +71,27 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
     @model.setter
     def model( self , dataModel ):
         if not isinstance( dataModel , pvAbstractModel ):
-            raise RuntimeError("pvTreeBuffer::__init__() dataModel is not instance of pvAbstractModel")
+            raise RuntimeError("pvTreeBuffer::model.setter() dataModel is not instance of pvAbstractModel")
 
         self.__item_list = []
+        self.__current_selection = pvModelIndex()
         self.__data_model = dataModel
 
 
+    @property
+    def selection( self ):
+        return self.__current_selection
+
+
+    @selection.setter
+    def selection( self , selection ):
+        if self.index2item( selection ):
+            self.__current_selection = selection
+
+
     def registerObserver( self , ob ):
+        if not isinstance( ob , pvTreeBufferObserver ):
+            raise RuntimeError( "pvTreeBuffer::registerObserver() ob is not a instance of pvTreeBufferObserver" )
         self.__observer_list.append( ob )
 
     def removeObserver( self , ob ):
@@ -89,9 +103,9 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
     def OnProcessEvent( self , event ):
         if event not in self.__event_list: return
 
-        self.current_selection = vim.current.window.cursor[0] - 1
+        self.__current_selection = vim.current.window.cursor[0] - 1
 
-        index = self.current_selection
+        index = self.__current_selection
         item = self.__item_list[ index ]
         # notify observer
         for ob in self.__observer_list:
@@ -152,16 +166,16 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             else:
                 flag = ' '
 
-            name = self.__data_model.data( item.index ).vim
-            name +=  '   <===' if i == self.current_selection else '' 
+            name = self.__data_model.data( item.index , PV_MODEL_ROLE_DISPLAY ).vim
+            name +=  '   <===' if i == self.__current_selection else '' 
             update_data_buffer.append( self.__format_string__ % {
                 'indent' : indent , 
                 'flag'   : flag , 
                 'name'   : name } )
 
         self.buffer[:] = update_data_buffer
-        if self.current_selection != -1 :
-            vim.current.window.cursor = ( self.current_selection + 1 , 0 )
+        if self.__current_selection != -1 and self.__current_selection < len( self.__item_list ):
+            vim.current.window.cursor = ( self.__current_selection + 1 , 0 )
             self.registerCommand('redraw')
             self.registerCommand('match Search /^.*   <===$/' , True)
 
@@ -169,14 +183,14 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
     def expandTo( self , index ):
         # root index, no need expand , just return OK
         if not index.isValid(): 
-            self.current_selection = -1 
+            self.__current_selection = -1 
             return True
 
 
         # can find the index
         item = self.index2item( index )
         if item:
-            self.current_selection = self.__item_list.index( item )
+            self.__current_selection = self.__item_list.index( item )
             return True
 
         # can't find the index ==> need to expand
@@ -207,7 +221,7 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
         item = self.index2item( index )
         if item :
-            self.current_selection = self.__item_list.index( item )
+            self.__current_selection = self.__item_list.index( item )
         return item != None
 
     def index2item( self , index ):
