@@ -85,8 +85,8 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
     @selection.setter
     def selection( self , selection ):
-        if self.index2item( selection ):
-            self.__current_selection = selection
+        #if self.index2item( selection ):
+        self.__current_selection = selection
 
 
     def registerObserver( self , ob ):
@@ -103,10 +103,9 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
     def OnProcessEvent( self , event ):
         if event not in self.__event_list: return
 
-        self.__current_selection = vim.current.window.cursor[0] - 1
-
-        index = self.__current_selection
-        item = self.__item_list[ index ]
+        offset = vim.current.window.cursor[0] - 1
+        item = self.__item_list[ offset ]
+        self.__current_selection = item.index
         # notify observer
         for ob in self.__observer_list:
             ob.OnTreeNodeSelected( item.index )
@@ -120,16 +119,16 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
                     insertItem.index = modelIndex
                     insertItem.indent = item.indent + 1
                     insertItem.hasChildren = self.__data_model.hasChildren( modelIndex )
-                    self.__item_list.insert( index + 1 , insertItem )
-                    index = index + 1
+                    self.__item_list.insert( offset + 1 , insertItem )
+                    offset = offset + 1
                 #notify observer
                 for ob in self.__observer_list:
                     ob.OnTreeNodeExpanded( item.index )
 
             else: # open ==> close
-                if index + 1 < len( self.__item_list ):  
+                if offset + 1 < len( self.__item_list ):  
                     # there are item behind the current selection
-                    childrenStart = childrenEnd = index + 1
+                    childrenStart = childrenEnd = offset + 1
                     while childrenEnd < len( self.__item_list ) :
                         if self.__item_list[childrenEnd].indent > item.indent :
                             childrenEnd = childrenEnd + 1
@@ -167,15 +166,18 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
                 flag = ' '
 
             name = self.__data_model.data( item.index , PV_MODEL_ROLE_DISPLAY ).vim
-            name +=  '   <===' if i == self.__current_selection else '' 
+            name +=  '   <===' if item.index == self.__current_selection else '' 
             update_data_buffer.append( self.__format_string__ % {
                 'indent' : indent , 
                 'flag'   : flag , 
                 'name'   : name } )
 
         self.buffer[:] = update_data_buffer
-        if self.__current_selection != -1 and self.__current_selection < len( self.__item_list ):
-            vim.current.window.cursor = ( self.__current_selection + 1 , 0 )
+
+        item = self.index2item( self.__current_selection )
+        if item:
+            offset = self.__item_list.index( item )
+            vim.current.window.cursor = ( offset + 1 , 0 )
             self.registerCommand('redraw')
             self.registerCommand('match Search /^.*   <===$/' , True)
 
@@ -183,14 +185,13 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
     def expandTo( self , index ):
         # root index, no need expand , just return OK
         if not index.isValid(): 
-            self.__current_selection = -1 
+            self.__current_selection = pvModelIndex()
             return True
 
 
         # can find the index
-        item = self.index2item( index )
-        if item:
-            self.__current_selection = self.__item_list.index( item )
+        if self.index2item( index ):
+            self.__current_selection = index
             return True
 
         # can't find the index ==> need to expand
@@ -221,7 +222,7 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
 
         item = self.index2item( index )
         if item :
-            self.__current_selection = self.__item_list.index( item )
+            self.__current_selection = index
         return item != None
 
     def index2item( self , index ):
