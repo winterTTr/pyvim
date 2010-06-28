@@ -121,14 +121,14 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
 
         self.buffer[:] = []
         if self.__direction == PV_LINEARBUF_TYPE_VERTICAL : # LIST
-            self.buffer[:] = data_buffer
+            self.buffer[:] = update_data_buffer
         else: # PV_LINEARBUF_TYPE_HORIZONTAL           # TAB
             self.buffer[0] = "|".join( update_data_buffer )
             self.registerCommand( 'resize %d' % ( len ( self.buffer[0] ) / vim.current.window.width + 1 , ) )
 
         if self.__current_selection.isValid() and self.__current_selection in self.__item_list:
             if self.__direction == PV_LINEARBUF_TYPE_VERTICAL:
-                vim.current.window.cursor = ( offset + 1 , 0 )
+                vim.current.window.cursor = ( self.__item_list.index( self.__current_selection ) + 1 , 0 )
                 self.registerCommand('redraw')
             else:
                 # TODO: may need move to the tab ?
