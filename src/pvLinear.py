@@ -33,7 +33,7 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
         self.__data_model = dataModel
         self.__observer_list = []
 
-        if type == PV_LINEARBUF_TYPE_VERTICAL :  # LIST
+        if direction == PV_LINEARBUF_TYPE_VERTICAL :  # LIST
             self.registerCommand('setlocal nowrap')
             self.registerCommand('setlocal nonumber')
             self.registerCommand('setlocal foldcolumn=0')
