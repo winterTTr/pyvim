@@ -23,13 +23,14 @@ class pvEventObserver(object):
 
 
 class pvBaseEvent(object):
-    @property
-    def type(self):
+    def getType(self):
         return self.__pv_event_type__()
 
-    @property
-    def uid(self):
+    def getUid(self):
         return self.__pv_event_uid__()
+
+    type = property( getType )
+    uid = property( getUid )
 
     def __pv_event_type__(self):
         raise NotImplementedError("pvEvent::__pv_event_type__")

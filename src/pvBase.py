@@ -148,17 +148,18 @@ class pvBuffer(object):
     #  ===============================================================
     #   property
     #  ===============================================================
-    @property
-    def id( self ):
+    def getId( self ):
         return self.__buffer.number
         
-    @property
-    def name( self ):
+    def getName( self ):
         return self.__buffer.name
 
-    @property
-    def buffer( self ):
+    def getBuffer( self ):
         return self.__buffer
+
+    id = property( getId )
+    name = property( getName )
+    buffer = property( getBuffer )
         
     # ================================================================
     #  buffer specific command
@@ -370,8 +371,7 @@ class pvWindow(object):
     #  ===============================================================
     #   property
     #  ===============================================================
-    @property
-    def id( self ):
+    def getId( self ):
         # no window object is attach
         if self._window == None :
             return PV_WINDOW_ID_CLOSED
@@ -399,13 +399,15 @@ class pvWindow(object):
 
         raise RuntimeError('pvWindow::id invalid window despcription')
 
-    @property
-    def bufferid( self ):
+    def getBufferid( self ):
         try:
             buffer = self._window.buffer
         except:
             return -1
         return buffer.number
+
+    id = property( getId )
+    bufferid = property( getBufferid )
     
     #  ===============================================================
     #   status check

@@ -6,27 +6,27 @@ class pvString(object):
     def __init__( self ):
         self.__u = u""
 
-    @property
-    def unicode(self):
+    def getUnicode(self):
         return self.__u
 
-    @unicode.setter
-    def unicode( self , unicode ):
+    def setUnicode( self , unicode ):
         if type( unicode ) == types.UnicodeType :
             self.__u = unicode
         else:
             raise RuntimeError("pvString::unicode must be set to an unicode string")
 
-    @property
-    def vim(self):
+    unicode = property( getUnicode , setUnicode )
+
+    def getVim(self):
         return self.__u.encode( vim.eval("&encoding") )
 
-    @vim.setter
-    def vim( self , vimStr ):
+    def setVim( self , vimStr ):
         if type( vimStr ) == types.StringType :
             self.__u = vimStr.decode( vim.eval("&encoding") )
         else:
             raise RuntimeError("pvString::vim must be set to a multibyte string from vim internal")
+
+    vim = property( getVim , setVim )
 
     def __eq__( self , other ):
         if isinstance( other , pvString ):

@@ -64,12 +64,10 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             event.removeObserver( self )
         super( pvTreeBuffer , self ).wipeout()
 
-    @property
-    def model( self ):
+    def getModel( self ):
         return self.__data_model
 
-    @model.setter
-    def model( self , dataModel ):
+    def setModel( self , dataModel ):
         if not isinstance( dataModel , pvAbstractModel ):
             raise RuntimeError("pvTreeBuffer::model.setter() dataModel is not instance of pvAbstractModel")
 
@@ -77,16 +75,18 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
         self.__current_selection = pvModelIndex()
         self.__data_model = dataModel
 
+    model = property( getModel , setModel )
 
-    @property
-    def selection( self ):
+
+    def getSelection( self ):
         return self.__current_selection
 
 
-    @selection.setter
-    def selection( self , selection ):
+    def setSelection( self , selection ):
         #if self.index2item( selection ):
         self.__current_selection = selection
+
+    selection = property( getSelection , setSelection )
 
 
     def registerObserver( self , ob ):

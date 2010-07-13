@@ -59,12 +59,10 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
         super( pvLinearBuffer , self ).wipeout()
 
 
-    @property
-    def model( self ):
+    def getModel( self ):
         return self.__data_model
 
-    @model.setter
-    def model( self , dataModel ):
+    def setModel( self , dataModel ):
         if not isinstance( dataModel , pvAbstractModel ):
             raise RuntimeError("pvLinearBuffer::model.setter() dataModel is not instance of pvAbstractModel")
 
@@ -72,15 +70,17 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
         self.__item_list = []
         self.__data_model = dataModel
 
+    model = property( getModel , setModel )
+
             
-    @property
-    def selection( self ):
+    def getSelection( self ):
         return self.__current_selection
 
 
-    @selection.setter
-    def selection( self , index ):
+    def setSelection( self , index ):
         self.__current_selection = index
+
+    selection = property( getSelection , setSelection )
 
     def registerObserver( self , ob ):
         if not isinstance( ob , pvLinearBufferObserver ):
