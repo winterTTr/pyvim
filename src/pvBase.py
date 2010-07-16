@@ -309,8 +309,8 @@ class pvBuffer(object):
 
 
 
-PV_WINDOW_ID_CLOSED = -1
-PV_WINDOW_ID_OTHER_TAB = -2
+#PV_WINDOW_ID_CLOSED = -1
+#PV_WINDOW_ID_OTHER_TAB = -2
 
 class pvWindow(object):
     """
@@ -336,8 +336,10 @@ class pvWindow(object):
         other_id = other.id
 
         # if close or on other tab , alwalys not equal
-        if self_id in [ PV_WINDOW_ID_CLOSED , PV_WINDOW_ID_OTHER_TAB ] : return False
-        if other_id in [ PV_WINDOW_ID_CLOSED , PV_WINDOW_ID_OTHER_TAB ] : return False
+        #if self_id in [ PV_WINDOW_ID_CLOSED , PV_WINDOW_ID_OTHER_TAB ] : return False
+        #if other_id in [ PV_WINDOW_ID_CLOSED , PV_WINDOW_ID_OTHER_TAB ] : return False
+        if self_id == -1 or other_id == -1 :
+            return False
 
         return self_id == other_id
 
@@ -374,25 +376,27 @@ class pvWindow(object):
     def getId( self ):
         # no window object is attach
         if self._window == None :
-            return PV_WINDOW_ID_CLOSED
+            #return PV_WINDOW_ID_CLOSED
+            return -1
 
         winStr = str( self._window )
 
         # <window 0>  ==> window exist
-        reMatch = re.match( '<window (?P<id>\d+)>' , winStr )
+        reMatch = re.match( '<.+(?P<id>\d+)>' , winStr )
         if reMatch:
             return int( reMatch.group('id') ) + 1
 
         # <window object (deleted) at XXXXXXXX>  ==> window closed
         reMatch = re.match( 
-                '<window object \(deleted\) at [A-Z0-9]{8}>' ,
+                '<.+[A-Z0-9]{8}>' ,
                 winStr)
         if reMatch:
-            return PV_WINDOW_ID_CLOSED
+            #return PV_WINDOW_ID_CLOSED
+            return -1
 
         # <window object (unknown) at 00EC7350> ==> window maybe on another tab
         reMatch = re.match( 
-                '<window object \(unknown\) at [A-Z0-9]{8}>' ,
+                '<.+[A-Z0-9]{8}>' ,
                 winStr)
         if reMatch:
             return PV_WINDOW_ID_OTHER_TAB
@@ -413,7 +417,8 @@ class pvWindow(object):
     #   status check
     #  ===============================================================
     def isShown( self ):
-        return self.id not in [ PV_WINDOW_ID_CLOSED , PV_WINDOW_ID_OTHER_TAB ]
+        #return self.id not in [ PV_WINDOW_ID_CLOSED , PV_WINDOW_ID_OTHER_TAB ]
+        return self.id != -1
 
 
 PV_SPLIT_TYPE_MOST_TOP     = 0x01
