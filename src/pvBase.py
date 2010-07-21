@@ -252,6 +252,7 @@ class pvBuffer(object):
             
     def OnUpdate( self ):
         # give the change to user to update the context
+        pass
 
 
 
