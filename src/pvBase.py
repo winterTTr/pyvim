@@ -25,16 +25,14 @@ PV_BUF_TYPE_ATTACH     = 0x0004
 def GenerateRandomName( base ):
 
     """
-    @brief Generate a random name, for example , used for a readonly buffer
-           whose name is not importance to be given by user.
-    @param[in] base as the base string where the random number is
-                    appended to 
+    @brief Generate a unique name, for example , used for a readonly buffer
+           whose name is not importance to be given by user, but have to
+           be unique.
+    @param[in] base as the base string where the random number is appended to 
     """
-    random_ext = random.randint( 0 , 9999999999 )
-    _logger.debug('GenerateRandomName() Create Random number[%d]' % random_ext )
 
+    random_ext = random.randint( 0 , 9999999999 )
     random_name =  '%s%10d' % ( base , random_ext )
-    _logger.info('GenerateRandomName() create random name[%s]' % random_name )
 
     return random_name
 
@@ -50,34 +48,27 @@ class pvBuffer(object):
     #   create and destroy the buffer
     #  ===============================================================
     def __init__( self ,  type , name = None):
-        _logger.debug('pvBuffer::__init__() type[%d] name[%s]' % ( type , name ) )
         # ckech & save type
         if type not in [ PV_BUF_TYPE_READONLY , PV_BUF_TYPE_NORMAL , PV_BUF_TYPE_ATTACH ] :
-            _logger.critical('pvBuffer::__init__() invalid buffer type[%d]' % type )
             raise RuntimeError("pvBuffer::__init__() invalid type[%d]" % type )
         self.__type = type
 
         if type == PV_BUF_TYPE_ATTACH :
-            _logger.info('pvBuffer::__init__() create ATTACH buffer')
             self.__buffer = None
             self.__command_queue = []
         else:
             # get name if given , otherwise give the system random name
             _name = name if name != None else GenerateRandomName('PV_BUF_')
-            _logger.debug('pvBuffer::__init__() create buffer-name[%s]' % _name )
 
             # create buffer, get the buffer id ( which is unique )
             buffer_id = int( vim.eval('bufnr( \'%s\' ,1 )' % _name ) )
-            #_logger.debug('pvBuffer::__init__() EVAL{ bufnr(\'%s\',1) } ==> %d' % ( _name , buffer_id ) )
 
             # get the vim buffer object
             self.__buffer = filter( lambda x : x.number == buffer_id , vim.buffers )[0]
-            _logger.debug('pvBuffer::__init__() get buffer object[%s]' % str( self.__buffer ) )
 
             # save the buffered command , when the buffer is open , the
             # command will be executed
             if type == PV_BUF_TYPE_READONLY :
-                _logger.info('pvBuffer::__init__() create READONLY buffer')
                 self.__command_queue = [
                         'setlocal nomodifiable' ,
                         'setlocal noswapfile' ,
@@ -88,27 +79,20 @@ class pvBuffer(object):
                         ]
 
             elif type == PV_BUF_TYPE_NORMAL :
-                _logger.info('pvBuffer::__init__() create NORMAL buffer')
                 self.__command_queue = [ 'setlocal buflisted' ]
 
 
     def __del__( self ):
-        if self.__type == PV_BUF_TYPE_ATTACH : 
-            _logger.debug('pvBuffer::__del__() ATTACH type , not wipeout')
-            return 
-        _logger.debug('pvBuffer::__del__() wipeout buffer')
+        if self.__type == PV_BUF_TYPE_ATTACH : return 
         self.wipeout()
 
     def wipeout( self ):
         if self.isExist():
-            _logger.info('pvBuffer::wipeout() wipe out buffer [%d]' % self.id )
             vim.command('bwipeout %d' % self.id )
             self.__buffer = None
-        _logger.debug('pvBuffer::wipeout() not exist, do nothing.')
 
     def attach( self , id ):
         if self.__type != PV_BUF_TYPE_ATTACH :
-            _logger.critical('pvBuffer::attach() type error![%d]' % self.__type )
             raise RuntimeError('pvBuffer::attach can NOT attach if the type is not PV_BUF_TYPE_ATTACH')
 
         # search buffer
@@ -116,33 +100,23 @@ class pvBuffer(object):
 
         # not find
         if find_buf_list == []: 
-            _logger.warn('pvBuffer::attach() Try to attch buffer[%d] , but can NOT find it.' % id )
             return False
 
         # find it
         self.__buffer = find_buf_list[0]
-        _logger.info('pvBuffer::attach() attach buffer[%d]' % id )
         return True
 
     def detach( self ):
-        _logger.debug('pvBuffer::detach()')
         self.__buffer = None
 
     #  ===============================================================
     #   check the status
     #  ===============================================================
     def isExist( self ):
-        if self.__buffer == None :
-            _logger.debug('pvBuffer::isExist() no buffer(NULL)')
-            return False
-        else:
-            # if the buffer delete , the object has no member
-            _buffer_member = dir( self.__buffer )
-            _logger.debug('pvBuffer::isExist() check buffer member[%s]' % str( _buffer_member ) )
-            return _buffer_member != []
+        # if buffer object is delete, the dir( buffer_object) will return []
+        return False if self.__buffer == None else dir( self.__buffer ) != []
 
     def isShown(self):
-        _logger.debug('pvBuffer::isShown()')
         return int( vim.eval( 'bufwinnr(%d)' % self.id ) ) != -1 
 
     #  ===============================================================
@@ -166,14 +140,12 @@ class pvBuffer(object):
     # ================================================================
     def registerCommand( self , cmd , flushQueue = False ):
         self.__command_queue.append( cmd )
-        _logger.debug('pvBuffer::registerCommand() add command[%s] , flush flag[%d]' % ( cmd , flushQueue ) )
 
         if flushQueue :
             self.tryFlushCommandQueue()
 
     def tryFlushCommandQueue( self ):
         if len( self.__command_queue ) == 0 :
-            _logger.debug('pvBuffer::tryFlushCommandQueue() no command, do nothing.')
             return
 
         # try to run the command , maybe the buffer does not show
@@ -181,13 +153,10 @@ class pvBuffer(object):
         current_focus_win = pvWindow()
         # 2. if is shown , focus it and runcommand
         if not self.setFocus(): 
-            _logger.debug('pvBuffer::tryFlushCommandQueue() can NOT set focus, do nothing.')
             return 
         # 3. run command
-        _logger.debug('pvBuffer::tryFlushCommandQueue() do command...')
         while self.__command_queue : vim.command( self.__command_queue.pop(0) )
         # 4. recover the focus
-        _logger.debug('pvBuffer::tryFlushCommandQueue() restore the focus')
         current_focus_win.setFocus()
 
 
@@ -197,40 +166,32 @@ class pvBuffer(object):
     #  ===============================================================
     def __enableLazyRedraw(self):
         self.__lazyredraw = vim.eval('&lazyredraw')
-        #_logger.debug('pvBuffer::__enableLazyRedraw() save the redraw value[%s]' % self.__lazyredraw )
         vim.command('let &lazyredraw=1')
         #vim.command('set eventignore=all')
 
     def __restoreLazyRedraw( self ):
-        #_logger.debug('pvBuffer::__restoreLazyRedraw() restore to [%s]' % self.__lazyredraw )
         vim.command('let &lazyredraw=' + self.__lazyredraw )
         #vim.command('set eventignore=')
 
     def setFocus( self ):
         show_win_id = int( vim.eval( 'bufwinnr(%d)' % self.id ) )
-        _logger.info('pvBuffer::setFocus() get which window show this buffer , id[%d]' % show_win_id)
 
         # the buffer is hidden , can't focus to the window
         if show_win_id == -1 : 
-            _logger.debug('pvBuffer::setFocus() can NOT focus:no window show it')
             return False
 
         # no need to change focus
         if pvWindow().id  == show_win_id : 
-            _logger.debug('pvBuffer::setFocus() already focus:no need to move focus.')
             return True
 
         # change focus
-        _logger.debug('pvBuffer::setFocus() move focus to window[%d]' % show_win_id )
         vim.command( "%dwincmd w" % ( show_win_id , ) )
         return True
 
     def showBuffer( self , parentwin ):
-        _logger.debug('pvBuffer::showBuffer()')
 
         # the buffer does not exist , do nothing
         if not self.isExist() : 
-            _logger.warn('pvBuffer::showBuffer() not exist, do nothing')
             return
 
         # save focus
@@ -241,27 +202,21 @@ class pvBuffer(object):
 
         # can not focus the parent win , win is closed maybe
         if not parentwin.setFocus():
-            _logger.warn('pvBuffer::showBuffer() parent win is closed maybe. Do nothing')
             self.__restoreLazyRedraw() 
             return 
             
         # open the buffer on the current window
-        _logger.warn('pvBuffer::showBuffer() show the buffer[%d]' % self.id )
         vim.command('buffer %d' % self.id )
         # run the buffer-specific command
-        _logger.debug('pvBuffer::showBuffer() flush the command')
         self.tryFlushCommandQueue()
 
         # restore the focus
-        _logger.debug('pvBuffer::showBuffer() restore the focus and lazyredraw')
         current_focus_win.setFocus()
         self.__restoreLazyRedraw()
 
 
     def updateBuffer( self ):
-        _logger.debug('pvBuffer::updateBuffer()')
         if self.__type == PV_BUF_TYPE_ATTACH : 
-            _logger.warn('pvBuffer::updateBuffer() ATTACH buffer should not be updated')
             return
 
         # save current focus win
@@ -272,40 +227,31 @@ class pvBuffer(object):
 
         # if not shown , do not update
         if not self.setFocus() : 
-            _logger.warn('pvBuffer::updateBuffer() focus to the buffer, failed , maybe not shown')
             self.__restoreLazyRedraw()
             return
-        _logger.debug('pvBuffer::updateBuffer() focus to the buffer')
 
 
         # close readonly if need to
         if self.__type == PV_BUF_TYPE_READONLY :
-            _logger.debug('pvBuffer::updateBuffer() REANONLY buffer, open modifiable')
             self.registerCommand('setlocal modifiable', True)
             self.registerCommand('setlocal noreadonly', True)
 
         
-        _logger.debug('pvBuffer::updateBuffer() run OnUpdate')
         self.OnUpdate()
-        _logger.debug('pvBuffer::updateBuffer() flush command')
         self.tryFlushCommandQueue()
 
         # open readonly after update buffer
         if self.__type == PV_BUF_TYPE_READONLY :
-            _logger.debug('pvBuffer::updateBuffer() REANONLY buffer, close modifiable')
             self.registerCommand('setlocal nomodifiable', True)
             self.registerCommand('setlocal readonly', True)
 
         # restore focus
-        _logger.debug('pvBuffer::updateBuffer() restore the focus and lazyredraw')
         current_focus_win.setFocus()
         self.__restoreLazyRedraw()
 
-        _logger.debug('pvBuffer::updateBuffer() notify observer about the update')
             
     def OnUpdate( self ):
         # give the change to user to update the context
-        _logger.debug('pvBuffer::OnUpdate() do nothing')
 
 
 
@@ -325,7 +271,6 @@ class pvWindow(object):
     #   create and destroy the window
     #  ===============================================================
     def __init__( self , winObj = None ):
-        #_logger.debug('pvWindow::__init__() wrap window[%s]' % str( winObj ) )
         self._window = winObj if winObj else vim.current.window
 
     def __eq__( self , other ):
@@ -351,24 +296,19 @@ class pvWindow(object):
         win_id = self.id
         # window has been close( destroyed ) 
         if win_id == -1 : 
-            _logger.debug('pvWindow::setFocus() windows is closed, can NOT focus')
             return False
 
         # if the current window is the target window , just return
         if pvWindow().id == win_id : 
-            _logger.debug('pvWindow::setFocus() already focus to, do nothing')
             return True
 
         # focus the win
-        _logger.debug('pvWindow::setFocus() move focus to window[%d]' % win_id )
         vim.command("%dwincmd w" % ( win_id , ) )
         return True
 
     def closeWindow( self ):
         if self.setFocus() : 
-            _logger.debug('pvWindow::closeWindow() close the window')
             vim.command("close")
-        _logger.debug('pvWindow::closeWindow() already closed, do nothing.')
 
     #  ===============================================================
     #   property
