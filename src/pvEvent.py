@@ -1,12 +1,11 @@
 import vim
-import urllib
-import pvEventManager
+import urllib.parse
 
 # register function for keymap event
 vim.command( """
 if !exists("*PV_KEY_MAP_DISPATCH_FUNC")
     function PV_KEY_MAP_DISPATCH_FUNC(uid)
-      exec 'python pyvim.pvEventManager.pvCoreEventManager.notifyObserver("'. a:uid . '")'
+      exec 'python3 pyvim.pvEventManager.pvCoreEventManager.notifyObserver("'. a:uid . '")'
       return @v
     endfunction
 endif
@@ -51,9 +50,11 @@ class pvBaseEvent(object):
         pass
 
     def registerObserver( self , ob ):
+        from . import pvEventManager
         pvEventManager.pvCoreEventManager.registerObserver( self , ob )
 
     def removeObserver( self , ob ):
+        from . import pvEventManager
         pvEventManager.pvCoreEventManager.removeObserver( self , ob )
 
 
@@ -90,7 +91,7 @@ class pvAutocmdEvent(pvBaseEvent):
                 'type'     : self.type ,
                 'groupname': self.group_name ,
                 'autocmd'  : self.autocmd_name , 
-                'filename' : urllib.quote( self.file_name_pattern ) }
+                'filename' : urllib.parse.quote( self.file_name_pattern ) }
 
     def registerCommand( self ):
         if vim.eval('exists("#%s")' % self.group_name ) == '0':
@@ -122,7 +123,7 @@ class pvAutocmdEvent(pvBaseEvent):
         return pvAutocmdEvent(
                 group_name , 
                 autocmd_name , 
-                urllib.unquote( file_name_pattern ) )
+                urllib.parse.unquote( file_name_pattern ) )
 
 
 
@@ -168,7 +169,7 @@ class pvKeymapEvent(pvBaseEvent):
     def __pv_event_uid__(self):
         return pvKeymapEvent.__uid_format__ % {
                 'type'    : self.type ,
-                'keyname' : urllib.quote( self.key_name ) ,
+                'keyname' : urllib.parse.quote( self.key_name ) ,
                 'mode'    : self.mode , 
                 'bufferid': self.buffer_id }
 
@@ -212,7 +213,7 @@ class pvKeymapEvent(pvBaseEvent):
     def FromUID( uid ):
         type , keyname , mode , bufferid = uid.split(':')
         event = pvKeymapEvent(
-                urllib.unquote( keyname ), 
+                urllib.parse.unquote( keyname ), 
                 int( mode ) )
         event.buffer_id = int( bufferid )
         return event

@@ -1,4 +1,4 @@
-import pvEvent
+from . import pvEvent
 
 class pvCoreEventManager(object):
     __ob_register = {}

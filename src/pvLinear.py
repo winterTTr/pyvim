@@ -1,8 +1,7 @@
 import vim
-from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
-from pvTree import pvTreeBuffer
-from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
-from pvDataModel import pvAbstractModel , pvModelIndex , PV_MODEL_ROLE_DISPLAY
+from .pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
+from .pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
+from .pvDataModel import pvAbstractModel , pvModelIndex , PV_MODEL_ROLE_DISPLAY
 
 import logging
 _logger = logging.getLogger('pyvim.pvLinear')
@@ -102,7 +101,7 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
             if self.__direction == PV_LINEARBUF_TYPE_VERTICAL:
                 vim.current.window.cursor = ( self.__item_list.index( index ) + 1 , 0 )
                 self.registerCommand('redraw')
-            self.registerCommand('match Search /\V%s/' % self.__data_model.data( index ).vim , True)
+            self.registerCommand('match Search /\V%s/' % self.__data_model.data( index ) , True)
             self.__current_selection = index
             for ob in self.__observer_list:
                 ob.OnLinearItemSelected( index )
@@ -117,7 +116,7 @@ class pvLinearBuffer( pvBuffer , pvEventObserver ):
 
         update_data_buffer = []
         for i , item in enumerate( self.__item_list ):
-            update_data_buffer.append( self.__data_model.data( item , PV_MODEL_ROLE_DISPLAY ).vim )
+            update_data_buffer.append( self.__data_model.data( item , PV_MODEL_ROLE_DISPLAY ) )
 
         self.buffer[:] = []
         if self.__direction == PV_LINEARBUF_TYPE_VERTICAL : # LIST

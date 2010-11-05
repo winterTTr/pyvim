@@ -34,7 +34,7 @@ class SocketFileObject(object):
         SocketFileObject.__client_connection_singleton__.settimeout( None )
         str =  SocketFileObject.__client_connection_singleton__.recv( 1024 )
         SocketFileObject.__client_connection_singleton__.settimeout( DEFAULT_TIMEOUT )
-        return str
+        return str.decode('utf8')
 
     def readall( self ):
         all_data = []
@@ -44,10 +44,10 @@ class SocketFileObject(object):
                 all_data.append( data )
             except:
                 break
-        return ''.join( all_data )
+        return b''.join( all_data )
 
     def write( self , str ):
-        SocketFileObject.__client_connection_singleton__.sendall( str )
+        SocketFileObject.__client_connection_singleton__.sendall( str.encode('utf8') )
 
     def flush( self ):
         pass
@@ -65,14 +65,14 @@ class SocketPdbClient( cmd.Cmd ):
         self.sfo = SocketFileObject( ip , port , False )
         cmd.Cmd.__init__( self , stdout = self.sfo )
         self.prompt = ''
-        sys.stdout.write( self.sfo.readall() )
+        sys.stdout.write( self.sfo.readall().decode('utf8') )
 
     def onecmd( self , line ):
         self.sfo.write( line + '\n' )
         if line == 'q' :
             self.sfo.close()
             return True
-        sys.stdout.write( self.sfo.readall() )
+        sys.stdout.write( self.sfo.readall().decode('utf8') )
 
 
 def set_trace():

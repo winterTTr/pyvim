@@ -1,11 +1,9 @@
-import re
 import vim
 
-from pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
-from pvUtil import pvString
+from .pvBase import pvBuffer , GenerateRandomName , PV_BUF_TYPE_READONLY
 
-from pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
-from pvDataModel import pvAbstractModel , pvModelIndex , PV_MODEL_ROLE_DISPLAY
+from .pvEvent import pvKeymapEvent , pvEventObserver , PV_KM_MODE_NORMAL
+from .pvDataModel import pvAbstractModel , pvModelIndex , PV_MODEL_ROLE_DISPLAY
 
 
 import logging
@@ -165,7 +163,7 @@ class pvTreeBuffer(pvBuffer , pvEventObserver):
             else:
                 flag = ' '
 
-            name = self.__data_model.data( item.index , PV_MODEL_ROLE_DISPLAY ).vim
+            name = self.__data_model.data( item.index , PV_MODEL_ROLE_DISPLAY )
             name +=  '   <===' if item.index == self.__current_selection else '' 
             update_data_buffer.append( self.__format_string__ % {
                 'indent' : indent , 
